@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: amalon_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: amalon_admin
+      POSTGRES_PASSWORD: amalon_secure_password_2026
+      POSTGRES_DB: amalon_crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/backup:/backup
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amalon_admin -d amalon_crm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  crm_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amalon_crm_app
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://amalon_admin:amalon_secure_password_2026@postgres:5432/amalon_crm?schema=public"
+      JWT_SECRET: "amalon_production_jwt_secret_key_change_me_in_prod"
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - crm_uploads:/app/uploads
+
+volumes:
+  postgres_data:
+    driver: local
+  crm_uploads:
+    driver: local
